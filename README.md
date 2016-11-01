@@ -21,5 +21,8 @@ make
 
 ```lisp
 (magic-file "/etc/shadow" '(none))
-"regular file, no read permission"
+;; => "regular file, no read permission"
+
+(magic-buffer "#!/usr/bin/ruby\nputs \"hello world\"")
+;; => "a /usr/bin/ruby script executable (binary data)"
 ```

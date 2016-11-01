@@ -29,7 +29,9 @@
 (defun magic-file (file &optional flags)
   (magic-core-file file (vconcat flags)))
 
+(defun magic-buffer (str &optional flags)
+  (magic-core-buffer str (vconcat flags)))
+
 (provide 'magic)
 
 ;;; magic.el ends here
-

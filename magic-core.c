@@ -113,29 +113,38 @@ to_magic_flag(emacs_env *env, emacs_value flags)
 	return flag;
 }
 
+static struct magic_set*
+magic_init(emacs_env *env, emacs_value flag)
+{
+	int flags = to_magic_flag(env, flag);
+	struct magic_set *magic = magic_open(flags);
+
+	if (magic == NULL)
+		return NULL;
+
+
+	int ret = magic_load(magic, NULL);
+	if (ret == -1) {
+		magic_close(magic);
+		return NULL;
+	}
+
+	return magic;
+}
+
 static emacs_value
 Fmagic_file(emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
 {
-	struct magic_set *magic;
 	emacs_value retval;
-	char *filename;
-	const char *file_magic;
-	ptrdiff_t namelen;
-	int flags = to_magic_flag(env, args[1]);
-
-	magic = magic_open(flags);
+	struct magic_set *magic = magic_init(env, args[1]);
 	if (magic == NULL) {
 		return env->intern(env, "nil");
 	}
 
-	int ret = magic_load(magic, NULL);
-	if (ret == -1) {
-		retval = env->intern(env, "nil");
-		goto error;
-	}
 
-	filename = retrieve_string(env, args[0], &namelen);
-	file_magic = magic_file(magic, filename);
+	ptrdiff_t namelen;
+	char *filename = retrieve_string(env, args[0], &namelen);
+	const char *file_magic = magic_file(magic, filename);
 	if (file_magic == NULL) {
 		retval = env->intern(env, "nil");
 		goto error;
@@ -146,6 +155,30 @@ Fmagic_file(emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
 error:
 	magic_close(magic);
 
+	return retval;
+}
+
+static emacs_value
+Fmagic_buffer(emacs_env *env, ptrdiff_t nargs, emacs_value args[], void *data)
+{
+	emacs_value retval;
+	struct magic_set *magic = magic_init(env, args[1]);
+	if (magic == NULL) {
+		return env->intern(env, "nil");
+	}
+
+	ptrdiff_t namelen;
+	char *str = retrieve_string(env, args[0], &namelen);
+	const char *str_magic = magic_buffer(magic, str, (size_t)namelen);
+	if (str_magic == NULL) {
+		retval = env->intern(env, "nil");
+		goto error;
+	}
+
+	retval = env->make_string(env, str_magic, strlen(str_magic));
+
+error:
+	magic_close(magic);
 	return retval;
 }
 
@@ -176,6 +209,7 @@ emacs_module_init (struct emacs_runtime *ert)
 {
 	emacs_env *env = ert->get_environment (ert);
 	bind_function(env, "magic-core-file", env->make_function(env, 2, 2, Fmagic_file, NULL, NULL));
+	bind_function(env, "magic-core-buffer", env->make_function(env, 2, 2, Fmagic_buffer, NULL, NULL));
 
 	init_flag_table(env);
 
